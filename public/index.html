@@ -2,61 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>📈 Indian Stock Exchange Multiplayer</title>
+  <title>Stock Exchange Game</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; }
+    body { font-family: Arial; max-width: 600px; margin: 20px auto; }
     #game { display: none; }
-    input { margin: 5px 0; padding: 5px; }
-    button { margin: 5px 0; padding: 5px 10px; }
-    #companies { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
-    #chat, #trade { border: 1px solid #999; height: 200px; overflow-y: auto; padding: 10px; margin: 10px 0; }
+    #chat, #trade { border: 1px solid #999; height: 150px; overflow-y: scroll; margin: 10px 0; padding: 10px; }
   </style>
 </head>
 <body>
-  <h1>📊 Indian Stock Exchange Game</h1>
+  <h1>📈 Indian Stock Game</h1>
 
   <div id="auth">
-    <input id="user" placeholder="Username" /><br/>
-    <input id="pass" type="password" placeholder="Password" /><br/>
-    <button onclick="reg()">Register</button>
+    <input id="user" placeholder="Username"><br/>
+    <input id="pass" type="password" placeholder="Password"><br/>
+    <button onclick="register()">Register</button>
     <button onclick="login()">Login</button>
     <p id="msg"></p>
   </div>
 
   <div id="game">
-    <h2>Welcome, <span id="me"></span>!</h2>
-
-    <h3>Companies</h3>
+    <h2>Welcome, <span id="me"></span></h2>
     <div id="companies"></div>
-
     <button onclick="startRound()">Start Round</button>
     <button onclick="endRound()">End Round</button>
-    <button onclick="getPred()">Show My Predictions</button>
+    <button onclick="getPreds()">My Predictions</button>
 
-    <h3>💬 Chat</h3>
+    <h3>Chat</h3>
     <div id="chat"></div>
-    <input id="cMsg" placeholder="Type message..." />
+    <input id="cmsg" placeholder="Message">
     <button onclick="sendChat()">Send</button>
 
-    <h3>🔄 Trades / Negotiations</h3>
+    <h3>Trade</h3>
     <div id="trade"></div>
-    <input id="tMsg" placeholder="Propose a trade..." />
-    <button onclick="sendTrade()">Propose</button>
+    <input id="tmsg" placeholder="Trade proposal">
+    <button onclick="sendTrade()">Send</button>
   </div>
 
   <script>
     const s = io();
     let username = '';
 
-    function reg() {
+    function register() {
       fetch('/register', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ username: user.value, password: pass.value })
-      })
-      .then(r => r.json())
-      .then(d => msg.innerText = d.error || '✅ Registered! Now log in.');
+      }).then(r => r.json()).then(d => {
+        msg.innerText = d.error || 'Registered! Now log in.';
+      });
     }
 
     function login() {
@@ -64,9 +58,7 @@
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ username: user.value, password: pass.value })
-      })
-      .then(r => r.json())
-      .then(d => {
+      }).then(r => r.json()).then(d => {
         if (d.error) return msg.innerText = d.error;
         username = d.username;
         me.innerText = username;
@@ -77,47 +69,42 @@
     }
 
     function loadCompanies() {
-      fetch('/companies').then(r => r.json()).then(cs => {
-        companies.innerHTML = cs.map(c => `${c.name}: ₹${c.price}`).join('<br/>');
+      fetch('/companies').then(r => r.json()).then(data => {
+        companies.innerHTML = data.map(c => `${c.name}: ₹${c.price}`).join('<br/>');
       });
     }
 
     function startRound() {
-      fetch('/round/start', { method: 'POST' })
-        .then(() => alert('Predictions for this round given!'));
+      fetch('/round/start', { method: 'POST' }).then(() => alert('Round started'));
     }
 
     function endRound() {
-      fetch('/round/end', { method: 'POST' }).then(() => {
-        alert('Round ended, prices updated!');
+      fetch('/round/end', { method: 'POST' }).then(() => alert('Round ended'));
+    }
+
+    function getPreds() {
+      fetch(`/predictions/${username}`).then(r => r.json()).then(p => {
+        alert('Your predictions:\n' + p.map(x => `${x.company}: ${x.change}₹`).join('\n'));
       });
     }
 
-    function getPred() {
-      fetch(`/predictions/${username}`)
-        .then(r => r.json())
-        .then(p => {
-          alert('Your Predictions:\n' + p.map(x => `${x.company}: ${x.change > 0 ? '+' : ''}${x.change} ₹`).join('\n'));
-        });
-    }
-
     function sendChat() {
-      s.emit('chat', `${username}: ${cMsg.value}`);
-      cMsg.value = '';
+      s.emit('chat', `${username}: ${cmsg.value}`);
+      cmsg.value = '';
     }
 
     function sendTrade() {
-      s.emit('trade', `${username} proposes: ${tMsg.value}`);
-      tMsg.value = '';
+      s.emit('trade', `${username} says: ${tmsg.value}`);
+      tmsg.value = '';
     }
 
-    s.on('chat', m => {
-      chat.innerHTML += `<div>${m}</div>`;
+    s.on('chat', msg => {
+      chat.innerHTML += `<div>${msg}</div>`;
       chat.scrollTop = chat.scrollHeight;
     });
 
-    s.on('trade', m => {
-      trade.innerHTML += `<div>${m}</div>`;
+    s.on('trade', msg => {
+      trade.innerHTML += `<div>${msg}</div>`;
       trade.scrollTop = trade.scrollHeight;
     });
 
